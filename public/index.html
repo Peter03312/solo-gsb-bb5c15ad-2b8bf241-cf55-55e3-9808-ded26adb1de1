@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水质实验室 · 样本分装与混样溯源工作台</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>水质实验室 · 样本分装与混样溯源工作台</h1>
+    <div class="top-actions">
+      <span id="health" class="badge badge-muted">连接中…</span>
+      <button id="refreshAll" class="btn btn-ghost" type="button">刷新</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="bottles" role="tab">① 瓶余量</button>
+    <button class="tab" data-tab="register" role="tab">② 登记原始瓶</button>
+    <button class="tab" data-tab="operate" role="tab">③ 分装 / 混样</button>
+    <button class="tab" data-tab="records" role="tab">④ 操作记录 / 更正</button>
+  </nav>
+
+  <main>
+    <!-- ① 瓶余量 + 谱系 -->
+    <section id="tab-bottles" class="panel active">
+      <div class="panel-head">
+        <h2>瓶当前余量</h2>
+        <div class="lineage-pick">
+          <label for="lineageCode">查看完整来源谱系：</label>
+          <select id="lineageCode"></select>
+          <button id="showLineage" class="btn" type="button">查询谱系</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="bottlesTable">
+          <thead>
+            <tr>
+              <th>瓶编号</th><th>类型</th><th>采样/出生时间</th>
+              <th class="num">出生体积 (ml)</th><th class="num">累计取用 (ml)</th>
+              <th class="num">当前余量 (ml)</th><th>产生操作</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="lineageBox" class="lineage-box hidden">
+        <h3>来源谱系 <small id="lineageTitle"></small></h3>
+        <div id="lineageTree" class="tree"></div>
+      </div>
+    </section>
+
+    <!-- ② 登记原始瓶 -->
+    <section id="tab-register" class="panel">
+      <h2>登记原始瓶</h2>
+      <form id="registerForm" class="card form-grid">
+        <label>瓶编号
+          <input name="code" required placeholder="如 RAW-004" autocomplete="off" />
+        </label>
+        <label>采样时间
+          <input name="sampledAt" type="datetime-local" step="1" required />
+        </label>
+        <label>初始体积（毫升，正整数）
+          <input name="initialMl" type="number" min="1" step="1" required placeholder="如 1000" />
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">登记</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ③ 分装 / 混样 -->
+    <section id="tab-operate" class="panel">
+      <h2>提交分装 / 混样操作</h2>
+      <form id="opForm" class="card">
+        <div class="form-grid">
+          <label>唯一操作号
+            <input name="opNo" required placeholder="如 OP-20261004-01" autocomplete="off" />
+          </label>
+          <label>目标瓶编号（自动生成新瓶，不可与现有瓶重名）
+            <input name="target" required placeholder="如 MIX-D" autocomplete="off" />
+          </label>
+          <label>操作时间
+            <input name="operatedAt" type="datetime-local" step="1" required />
+          </label>
+        </div>
+        <fieldset class="sources">
+          <legend>来源瓶与取用量（正整数毫升，来源不得重复）</legend>
+          <div id="sourceRows"></div>
+          <button id="addSource" class="btn btn-ghost" type="button">＋ 添加来源瓶</button>
+        </fieldset>
+        <p class="muted">目标体积 = 各来源取用量之和：<strong id="targetPreview">0 ml</strong></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">提交操作</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ④ 操作记录 / 更正 -->
+    <section id="tab-records" class="panel">
+      <h2>操作记录</h2>
+      <p class="muted">点击“更正”可修改历史操作的时间与取用量；提交时按操作顺序重算全部相关瓶余量，若后续操作因此超用，整次更正会被拒绝且原数据保持不变。</p>
+      <div id="opsList" class="ops-list"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- 更正对话框 -->
+  <div id="editModal" class="modal-mask hidden">
+    <div class="modal">
+      <h3>更正操作 <span id="editOpNo"></span></h3>
+      <form id="editForm">
+        <div class="form-grid">
+          <label>目标瓶编号
+            <input name="target" required autocomplete="off" />
+          </label>
+          <label>操作时间
+            <input name="operatedAt" type="datetime-local" step="1" required />
+          </label>
+        </div>
+        <fieldset class="sources">
+          <legend>来源瓶与取用量（重算后任一时点超用即拒绝）</legend>
+          <div id="editSourceRows"></div>
+          <button id="editAddSource" class="btn btn-ghost" type="button">＋ 添加来源瓶</button>
+        </div>
+        <p class="muted">更正后目标体积：<strong id="editPreview">0 ml</strong></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">提交更正（整体重算）</button>
+          <button class="btn btn-ghost" type="button" id="editCancel">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
